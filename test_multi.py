@@ -1,16 +1,17 @@
-from odoo.tests import SavepointCase
+from odoo.tests import common, new_test_user
 from odoo.exceptions import ValidationError
+from odoo import fields
 
-class TestHospitalModule(SavepointCase):
+class TestHospitalModule(common.TransactionCase):
 
-    @classmethod
-    def setUpClass(cls):
-        super(TestHospitalModule, cls).setUpClass()
-        cls.Patient = cls.env['hospital.patient']
-        cls.Doctor = cls.env['hospital.doctor']
-        cls.Appointment = cls.env['hospital.appointment']
+    def setUp(self):
+        super(TestHospitalModule, self).setUp()
+        self.Patient = self.env['hospital.patient']
+        self.Doctor = self.env['hospital.doctor']
+        self.Appointment = self.env['hospital.appointment']
 
-        cls.doctor = cls.Doctor.create({
+        # Create a default doctor for the tests that need it
+        self.doctor = self.Doctor.create({
             'doctor_name': 'Dr. Strange',
             'gender': 'male',
             'age': 45,
@@ -66,3 +67,54 @@ class TestHospitalModule(SavepointCase):
         })
         appointment2.unlink()
         print("PASS: Draft appointment deleted successfully.")
+
+    def test_create_patient(self):
+        """Test patient creation with name and age fields."""
+        user = new_test_user(self.env, "test base user", groups="base.group_user")
+
+        patient = self.Patient.create({
+            "name": "John Doe",
+            "age": 45,
+        })
+
+        try:
+            self.assertEqual(patient.age, 45, "Patient creation has bug, age should be 45")
+            print("PASS: Patient age is correctly set to 45.")
+        except AssertionError as e:
+            print(f"FAIL: {str(e)}")
+
+        try:
+            self.assertEqual(patient.name, "John Doe", "Patient creation has bug, name should be John Doe")
+            print("PASS: Patient name is correctly set to 'John Doe'.")
+        except AssertionError as e:
+            print(f"FAIL: {str(e)}")
+
+    def test_doctor_appointment_count(self):
+        """Test that doctor's appointment count updates correctly."""
+        user = new_test_user(self.env, "test base user", groups="base.group_user")
+
+        patient = self.Patient.create({
+            "name": "Jane Doe",
+            "age": 60,
+        })
+        print("PASS: Patient created successfully.")
+
+        doctor = self.Doctor.create({
+            "doctor_name": "Bob Smith",
+            "gender": "male",
+            "age": 50,
+        })
+        print("PASS: Doctor created successfully.")
+
+        appointment = self.Appointment.create({
+            "patient_id": patient.id,
+            "doctor_id": doctor.id,
+            "date_appointment": fields.Date.today(),
+        })
+        print("PASS: Appointment created successfully.")
+
+        try:
+            self.assertEqual(doctor.appointment_count, 1, "Appointment creation has bug, number of appointments should be 1")
+            print("PASS: Doctor appointment count correctly updated to 1.")
+        except AssertionError as e:
+            print(f"FAIL: {str(e)}")
